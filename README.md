@@ -3,13 +3,13 @@ This is my project for CARTO Data Engineering test (Data team).
 
 To be able to connect with Google Cloud, it is necessary to create a credentials file named `google_credentials.json` in project path.
 ## 1.a - Download Taxi data from Google Cloud Storage
-To achieve this goal, I have developed an extractor that downloads all the files from bucket and unzip them in `raw_data/` path. This extractor can be executed as follows:
+To achieve this goal, I have developed an extractor script that downloads all the files from bucket and unzip them in `raw_data/` path. This extractor can be executed as follows:
 ```
- python3 src/GC_Extractor.py conf/conf.ini
+ python3 src/NYC_Taxi_Extract.py conf/conf.ini
 ```
 Once executed this, csv data must be stored in `raw_data/` path
 
-## 1.b - Transform the data (if applicable) in a way that Google BigQury is able to ingest it
+## 1.b - Transform the data (if applicable) in a way that Google BigQuery is able to ingest it
 Before upload any data to Google BigQuery, we are going to do a initial research of some files stored in `raw_path/`
 
 Inspect `raw_data/yellow_tripdata_2015-01_00.csv` file:
@@ -45,7 +45,32 @@ Result:
 1|2015-01-20 21:08:51|2015-01-20 21:22:22|1|2.8|-73.97978210449219|40.78116226196289|1|N|-73.97393035888672|40.75231552124024|2|12.0|0.5|0.5|0.0|0.0|0.3|13.3
 ```
 
-After this initial research, we can identify these anomalies:
+After this initial research, we can identify these anomalies in the raw data:
 
 - Some files have header and some files don't
 - Some files have '\t' separator and some files have '|' separator
+- Some files come with header larger than usual
+- Some values could have wrong format (maybe because they are driver-entered value)
+
+In order to obtain a clean dataset ready to be uploaded to BigQuery, I have developed a transformer script to clean the dataset and solve the problems previously commented. This extractor can be executed as follows:
+```
+ python3 src/NYC_Taxi_Transform.py conf/conf.ini
+```
+To obtain the maximum performance and be able to scale in, I have decided to use Dask to do the data transformation.
+Dask is a flexible library for parallel computing in Python. Dask DataFrame is a large parallel DataFrame composed of many smaller Pandas DataFrames, which are well known by users.
+
+This script loads all .csv files stored in `raw_data/` into a Dask Dataframe. I have decided to use a complex separator that includes all the situations `\t|\|` and specify a header with all the variables specified in file `data_dictionary_trip_records_yellow.pdf`
+I have added the parameter `error_bad_lines=False` when reading csv_files in order to avoid problems with files having headers longer than usual.
+
+Finally, transformed data will be stored with csv format into folder `processed_data`, ready to be uploaded to Google BigQuery.
+
+## 1.c - Upload data to Google BigQuery
+To be able to upload all transformed data stored in `processed_data` folder into BigQuery, I have developed a loader script that can be executed as follows:
+```
+ python3 src/NYC_Taxi_Load.py conf/conf.ini
+```
+This scripts read all files in `processed_data` folder and uploads each one to BigQuery using BigQuery Python Client. Before uploading any file, this script creates the dataset & table in BigQuery to store NYC Taxi data (if they have not been created before).
+
+
+
+

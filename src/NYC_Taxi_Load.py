@@ -11,6 +11,7 @@ def create_dataset(client, dataset_id):
         print("Dataset {} already exists".format(dataset_id))
     except NotFound:
         client.create_dataset(dataset_id)
+        print("Created dataset {}".format(dataset_id))
 
 def create_table(client, table):
     # Create table in BigQuery if not exists
@@ -19,6 +20,7 @@ def create_table(client, table):
         print("Table {} already exists".format(table))
     except NotFound:
         client.create_table(table)
+        print("Created table {}".format(table))
 
 def load_data(client, dataset_id, table_id, filename):
     dataset_ref = client.dataset(dataset_id)
@@ -57,8 +59,8 @@ if __name__ == '__main__':
         project_id = cp.get('google', 'project_id')
         dataset_id = cp.get('google', 'dataset_id')
         table_id = cp.get('google', 'table_id')
-        data_path = cp.get('extractor', 'processed_data_path')
-        file_extension = cp.get('extractor', 'processed_file_extension')
+        data_path = cp.get('etl', 'processed_data_path')
+        file_extension = cp.get('etl', 'processed_file_extension')
 
         # Set GOOGLE_APPLICATION_CREDENTIALS environment variable to google credentials file
         os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = google_app_credentials

@@ -26,7 +26,7 @@ def cleanpath(path, file_extension):
     print('Delete all elements in {} with extension different than {}'.format(path, file_extension))
     files_in_directory = os.listdir(path)
 
-    filtered_files = [file for file in files_in_directory if not file.endswith(file_extension)]
+    filtered_files = [file for file in files_in_directory if not file.endswith(file_extension) and not file.endswith('.gitkeep')]
     for file in filtered_files:
         print('Deleting file {}'.format(file))
         path_to_file = os.path.join(path, file)
@@ -54,8 +54,8 @@ if __name__ == '__main__':
         # Read the properties from the configuration file
         google_app_credentials = cp.get('google', 'credentials')
         bucket_name = cp.get('google', 'bucket_name')
-        data_path = cp.get('extractor', 'raw_data_path')
-        file_extension = cp.get('extractor', 'raw_file_extension')
+        data_path = cp.get('etl', 'raw_data_path')
+        file_extension = cp.get('etl', 'raw_file_extension')
 
         # Set GOOGLE_APPLICATION_CREDENTIALS environment variable to google credentials file
         os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = google_app_credentials
