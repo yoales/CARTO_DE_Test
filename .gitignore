@@ -1,5 +1,6 @@
 .idea/
 venv/
-data/*
+raw_data/*
+processed_data/*
 google_credentials.json
 .DS_Store
