@@ -71,6 +71,10 @@ To be able to upload all transformed data stored in `processed_data` folder into
 ```
 This scripts read all files in `processed_data` folder and uploads each one to BigQuery using BigQuery Python Client. Before uploading any file, this script creates the dataset & table in BigQuery to store NYC Taxi data (if they have not been created before).
 
-
+## 1.d. Split the resulting table into data and geometries (data and geometries should be joinable by a common key)
+In order to achieve this goal, I have created a script that execute two CTAS DDL using BigQuery Python Client. In select statement I have added `ROW_NUMBER() OVER() AS ID` to obtain a key that can be used as a joinable key between both tables. The script can be executed as follows:
+```
+python3 src/NYC_Taxi_Table_Splitter.py conf/conf.ini
+```                                                                                                                                                                                                                                                            
 
 
