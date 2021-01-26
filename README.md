@@ -71,10 +71,77 @@ To be able to upload all transformed data stored in `processed_data` folder into
 ```
 This scripts read all files in `processed_data` folder and uploads each one to BigQuery using BigQuery Python Client. Before uploading any file, this script creates the dataset & table in BigQuery to store NYC Taxi data (if they have not been created before).
 
-## 1.d. Split the resulting table into data and geometries (data and geometries should be joinable by a common key)
+## 1.d - Split the resulting table into data and geometries (data and geometries should be joinable by a common key)
 In order to achieve this goal, I have created a script that execute two CTAS DDL using BigQuery Python Client. In select statement I have added `ROW_NUMBER() OVER() AS ID` to obtain a key that can be used as a joinable key between both tables. The script can be executed as follows:
 ```
 python3 src/NYC_Taxi_Table_Splitter.py conf/conf.ini
 ```                                                                                                                                                                                                                                                            
+## 3. Write the SQL queries that help you answer the following questions:
+## 3.a - What is the average fare per mile?
+
+Query:
+```
+SELECT avg(fare_mer_mile) AS fare_mer_mile_avg
+FROM (
+SELECT  fare_amount, trip_distance, fare_amount/trip_distance AS fare_mer_mile
+FROM `carto-de-test.carto_ds.nyc_taxi_data_information`
+WHERE trip_distance != 0.0
+)
+```
+Result:
+```
+6.356887742187664
+```
+
+## 3.b - Which are the 10 pickup taxi zones with the highest average tip?
+
+Transform the .shp file to .csv file with EPSG:4326 format
+```
+sudo apt-get install gdal-bin
+ogr2ogr -t_srs "EPSG:4326" taxi_zones/taxi_zones_4326.shp taxi_zones/taxi_zones.shp
+ogr2ogr -f "CSV" -dialect sqlite -sql "select AsGeoJSON(geometry) AS geom, * from taxi_zones_4326" -overwrite taxi_zones/taxi_zones_4326.csv taxi_zones/taxi_zones_4326.shp
+```
+Create a new table in BigQuery named `nyc_taxi_zones` with this taxi areas stored in .csv generated in the previous step.
+```
+python3 src/NYC_Taxi_Zones_Load.py conf/conf.ini
+```
+
+Query:
+```
+WITH taxi_zones AS (
+    SELECT ST_GeogFromGeoJson(geom) AS polygon
+FROM `carto-de-test.carto_ds.nyc_taxi_zones`
+),
+
+max_avg_tips AS (
+    SELECT
+ID,
+  ST_GeogPoint(pickup_longitude, pickup_latitude) AS WKT
+FROM
+`carto-de-test.carto_ds.nyc_taxi_data_geometries`
+WHERE pickup_longitude < 90 AND pickup_longitude > -90
+AND pickup_latitude < 90 AND  pickup_latitude > -90  
+AND pickup_longitude != 0.0 AND pickup_latitude != 0.0
+AND ID IN 
+(
+  SELECT ID FROM (
+    SELECT ID, AVG(tip_amount) AS avg_tip
+    FROM `carto-de-test.carto_ds.nyc_taxi_data_information`
+    GROUP BY ID
+    ORDER BY avg_tip desc
+    LIMIT 10
+  )
+)
+)
+
+
+SELECT * FROM taxi_zones
+JOIN max_avg_tips
+ON ST_INTERSECTS(taxi_zones.polygon, max_avg_tips.WKT)
+```
+In order to visualize this results, we have used `https://bigquerygeoviz.appspot.com/`
+
+Result:
+![picture](img/max_taxi_tips_nyc_areas.png)
 
 
