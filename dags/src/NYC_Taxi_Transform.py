@@ -1,5 +1,6 @@
 import configparser
 import dask.dataframe as dd
+import sys
 
 def cast_str_to_float(a):
     res = None
@@ -44,13 +45,16 @@ def clean_df(df):
 
     return df_clean
 
-if __name__ == '__main__':
+def transform(**kwargs):
     cp = configparser.ConfigParser()
-    cp.read('conf/conf.ini')
+    cp.read(kwargs['config_file'])
+    home_path = kwargs['airflow_path']
+    raw_data_path = cp.get('etl', 'raw_data_path')
+    processed_data_path = cp.get('etl', 'processed_data_path')
 
     # Read the properties from the configuration file
-    input_data_path = cp.get('etl', 'raw_data_path')
-    output_data_path = cp.get('etl', 'processed_data_path')
+    input_data_path = f'{home_path}/{raw_data_path}'
+    output_data_path = f'{home_path}/{processed_data_path}'
     file_extension = cp.get('etl', 'processed_file_extension')
     separator = cp.get('etl', 'file_separator')
     process_file_name = cp.get('etl', 'process_file_name')
@@ -67,4 +71,12 @@ if __name__ == '__main__':
     # Write Dask Dataframe into output_data_path
     print("Writing transformed data into {}".format(output_data_path))
     df_clean.to_csv(full_output_data_path, index=False)
+
+if __name__ == '__main__':
+    if(len(sys.argv) < 2):
+        print('Incorrect  number of parameters. This must be: \n'
+              '[$AIRFLOW_HOME] [$AIRFLOW_HOME/dags/conf/conf.ini]')
+    else:
+        transform(**{'airflow_path': sys.argv[1], 'config_file': sys.argv[2]})
+
 

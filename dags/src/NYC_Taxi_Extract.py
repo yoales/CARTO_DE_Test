@@ -43,24 +43,30 @@ def unzipFilesInDir(path, file_extension):
             zip_ref.close()
             os.remove(file_name)
 
-if __name__ == '__main__':
+def extract(**kwargs):
     cp = configparser.ConfigParser()
+    cp.read(kwargs['config_file'])
+    home_path = kwargs['airflow_path']
+    credentials_file = cp.get('google', 'credentials')
+    raw_data_path = cp.get('etl', 'raw_data_path')
+
+    # Read the properties from the configuration file
+    google_app_credentials = f'{home_path}/{credentials_file}'
+    bucket_name = cp.get('google', 'bucket_name')
+    data_path = f'{home_path}/{raw_data_path}'
+    file_extension = cp.get('etl', 'raw_file_extension')
+
+    # Set GOOGLE_APPLICATION_CREDENTIALS environment variable to google credentials file
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = google_app_credentials
+
+    # Download all blobs stored in bucket
+    download_all_blobs(bucket_name, data_path)
+    cleanpath(data_path, file_extension)
+    unzipFilesInDir(data_path, file_extension)
+
+if __name__ == '__main__':
     if(len(sys.argv) < 2):
         print('Incorrect  number of parameters. This must be: \n'
-              '[conf_file.ini]')
+              '[$AIRFLOW_HOME] [$AIRFLOW_HOME/dags/conf/conf.ini]')
     else:
-        cp.read(sys.argv[1])
-
-        # Read the properties from the configuration file
-        google_app_credentials = cp.get('google', 'credentials')
-        bucket_name = cp.get('google', 'bucket_name')
-        data_path = cp.get('etl', 'raw_data_path')
-        file_extension = cp.get('etl', 'raw_file_extension')
-
-        # Set GOOGLE_APPLICATION_CREDENTIALS environment variable to google credentials file
-        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = google_app_credentials
-
-        # Download all blobs stored in bucket
-        download_all_blobs(bucket_name, data_path)
-        cleanpath(data_path, file_extension)
-        unzipFilesInDir(data_path, file_extension)
+        extract(**{'airflow_path': sys.argv[1], 'config_file': sys.argv[2]})

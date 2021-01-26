@@ -1,7 +1,13 @@
 .idea/
 venv/
-raw_data/*
-processed_data/*
-google_credentials.json
+dags/raw_data/*
+dags/processed_data/*
 .DS_Store
-dask-worker-space/
+dags/dask-worker-space/
+airflow.cfg
+airflow.db
+unittests.cfg
+logs/
+webserver_config.py
+dags/__pycache__/
+dags/src/__pycache__/

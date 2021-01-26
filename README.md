@@ -1,19 +1,32 @@
 # CARTO_DE_Test
 
 ## Instructions
-
-To create a virtualenv and install the requirements type:
+Set Airflow Home Directory
+```
+export AIRFLOW_HOME=$PWD
+```
+Create a virtualenv and install the requirements type:
 ```
 virtualenv -p python3 venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
-To be able to connect with Google Cloud, it is necessary to create a credentials file named `google_credentials.json` in project path.
+To be able to connect with Google Cloud, it is necessary to fill the content of the file `google_credentials.json` with your Google Credentials.
+
+initialize the Airflow database
+```
+airflow db init
+```
+
+Launch the Airflow DAG:
+```
+airflow dags backfill NYC_Taxi_DAG --start-date 2021-01-26 --end-date 2021-01-26
+```
 
 ## Download Taxi data from Google Cloud Storage
 To achieve this goal, I have developed an extractor script that downloads all the .zip files from Google bucket. This extractor can be executed as follows:
 ```
-python3 src/NYC_Taxi_Extract.py conf/conf.ini
+python3 $AIRFLOW_HOME/dags/src/NYC_Taxi_Extract.py $AIRFLOW_HOME $AIRFLOW_HOME/dags/conf/conf.ini
 ```
 Once executed this, .csv files must be stored in `raw_data/` path.
 
@@ -62,7 +75,7 @@ After this initial research, we can identify these anomalies in the raw data:
 
 In order to obtain a clean dataset ready to be uploaded to BigQuery, I have developed a transformer script that can be executed as follows:
 ```
-python3 src/NYC_Taxi_Transform.py conf/conf.ini
+python3 $AIRFLOW_HOME/dags/src/NYC_Taxi_Transform.py $AIRFLOW_HOME $AIRFLOW_HOME/dags/conf/conf.ini
 ```
 To obtain the maximum performance and be able to scale in, I have decided to use Dask library to do the data transformation.
 Dask is a flexible library for parallel computing in Python. Dask DataFrame is a large parallel DataFrame composed of many smaller Pandas DataFrames, which are well known by users.
@@ -75,7 +88,7 @@ Finally, transformed data will be stored with csv format into folder `processed_
 ## Upload data to Google BigQuery
 To be able to upload all transformed data stored in `processed_data/` folder into BigQuery, I have developed a loader script that can be executed as follows:
 ```
-python3 src/NYC_Taxi_Load.py conf/conf.ini
+python3 $AIRFLOW_HOME/dags/src/NYC_Taxi_Load.py $AIRFLOW_HOME $AIRFLOW_HOME/dags/conf/conf.ini
 ```
 This scripts read all files in `processed_data/` folder and uploads each one to BigQuery using BigQuery Python Client. Before uploading any file, this script creates the dataset & table in BigQuery to store NYC Taxi data (if they have not been created before).
 
@@ -84,7 +97,7 @@ The name of the created table is `carto_ds.nyc_taxi_data`
 ## Split the resulting table into data and geometries (data and geometries should be joinable by a common key)
 In order to achieve this goal, I have created a script that execute two CTAS DDL using BigQuery Python Client. In select statement I have added `ROW_NUMBER() OVER() AS ID` to obtain a key that can be used as a joinable key between both tables. The script can be executed as follows:
 ```
-python3 src/NYC_Taxi_Table_Splitter.py conf/conf.ini
+python3 $AIRFLOW_HOME/dags/src/NYC_Taxi_Table_Splitter.py $AIRFLOW_HOME $AIRFLOW_HOME/dags/conf/conf.ini
 ```       
 The name of the created tables are:
 

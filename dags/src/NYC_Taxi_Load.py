@@ -46,34 +46,42 @@ def load_all_data(client, dataset_id, table_id, path, file_extension):
                 print('Loading file {} into table {}'.format(os.path.join(root, name), table_id))
                 load_data(client, dataset_id, table_id, os.path.join(root, name))
 
-if __name__ == '__main__':
+def load(**kwargs):
     cp = configparser.ConfigParser()
+    cp.read(kwargs['config_file'])
+    home_path = kwargs['airflow_path']
+    credentials_file = cp.get('google', 'credentials')
+    processed_data_path = cp.get('etl', 'processed_data_path')
+
+    # Read the properties from the configuration file
+    google_app_credentials = f'{home_path}/{credentials_file}'
+    project_id = cp.get('google', 'project_id')
+    dataset_id = cp.get('google', 'dataset_id')
+    table_id = cp.get('google', 'table_id')
+    data_path = f'{home_path}/{processed_data_path}'
+    file_extension = cp.get('etl', 'processed_file_extension')
+
+    # Set GOOGLE_APPLICATION_CREDENTIALS environment variable to google credentials file
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = google_app_credentials
+
+    # Create a client instance
+    client = bigquery.Client(project=project_id)
+
+    # Create dataset if not exists
+    create_dataset(client, dataset_id)
+
+    # Create table if not exists
+    table = f"{project_id}.{dataset_id}.{table_id}"
+    create_table(client, table)
+
+    # Load all data from path into BigQuery table
+    load_all_data(client, dataset_id, table_id, data_path, file_extension)
+
+if __name__ == '__main__':
     if(len(sys.argv) < 2):
         print('Incorrect  number of parameters. This must be: \n'
-              '[conf_file.ini]')
+              '[$AIRFLOW_HOME] [$AIRFLOW_HOME/dags/conf/conf.ini]')
     else:
-        cp.read(sys.argv[1])
+        load(**{'airflow_path': sys.argv[1], 'config_file': sys.argv[2]})
 
-        # Read the properties from the configuration file
-        google_app_credentials = cp.get('google', 'credentials')
-        project_id = cp.get('google', 'project_id')
-        dataset_id = cp.get('google', 'dataset_id')
-        table_id = cp.get('google', 'taxi_zones_table')
-        file = cp.get('etl', 'taxi_zones_file')
-        file_extension = cp.get('etl', 'processed_file_extension')
 
-        # Set GOOGLE_APPLICATION_CREDENTIALS environment variable to google credentials file
-        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = google_app_credentials
-
-        # Create a client instance
-        client = bigquery.Client(project=project_id)
-
-        # Create dataset if not exists
-        create_dataset(client, dataset_id)
-
-        # Create table if not exists
-        table = f"{project_id}.{dataset_id}.{table_id}"
-        create_table(client, table)
-
-        # Load all data from path into BigQuery table
-        load_data(client, dataset_id, table_id, file)
