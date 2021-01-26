@@ -1,16 +1,24 @@
 # CARTO_DE_Test
-This is my project for CARTO Data Engineering test (Data team).
 
+## Instructions
+
+To create a virtualenv and install the requirements type:
+```
+virtualenv -p python3 venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
 To be able to connect with Google Cloud, it is necessary to create a credentials file named `google_credentials.json` in project path.
-## 1.a - Download Taxi data from Google Cloud Storage
-To achieve this goal, I have developed an extractor script that downloads all the files from bucket and unzip them in `raw_data/` path. This extractor can be executed as follows:
-```
- python3 src/NYC_Taxi_Extract.py conf/conf.ini
-```
-Once executed this, csv data must be stored in `raw_data/` path
 
-## 1.b - Transform the data (if applicable) in a way that Google BigQuery is able to ingest it
-Before upload any data to Google BigQuery, we are going to do a initial research of some files stored in `raw_path/`
+## Download Taxi data from Google Cloud Storage
+To achieve this goal, I have developed an extractor script that downloads all the .zip files from Google bucket. This extractor can be executed as follows:
+```
+python3 src/NYC_Taxi_Extract.py conf/conf.ini
+```
+Once executed this, .csv files must be stored in `raw_data/` path.
+
+## Transform the data (if applicable) in a way that Google BigQuery is able to ingest it
+Before upload any data to Google BigQuery, we are going to do an initial research of some files stored in `raw_path/`
 
 Inspect `raw_data/yellow_tripdata_2015-01_00.csv` file:
 ```
@@ -52,11 +60,11 @@ After this initial research, we can identify these anomalies in the raw data:
 - Some files come with header larger than usual
 - Some values could have wrong format (maybe because they are driver-entered value)
 
-In order to obtain a clean dataset ready to be uploaded to BigQuery, I have developed a transformer script to clean the dataset and solve the problems previously commented. This extractor can be executed as follows:
+In order to obtain a clean dataset ready to be uploaded to BigQuery, I have developed a transformer script that can be executed as follows:
 ```
- python3 src/NYC_Taxi_Transform.py conf/conf.ini
+python3 src/NYC_Taxi_Transform.py conf/conf.ini
 ```
-To obtain the maximum performance and be able to scale in, I have decided to use Dask to do the data transformation.
+To obtain the maximum performance and be able to scale in, I have decided to use Dask library to do the data transformation.
 Dask is a flexible library for parallel computing in Python. Dask DataFrame is a large parallel DataFrame composed of many smaller Pandas DataFrames, which are well known by users.
 
 This script loads all .csv files stored in `raw_data/` into a Dask Dataframe. I have decided to use a complex separator that includes all the situations `\t|\|` and specify a header with all the variables specified in file `data_dictionary_trip_records_yellow.pdf`
@@ -64,20 +72,97 @@ I have added the parameter `error_bad_lines=False` when reading csv_files in ord
 
 Finally, transformed data will be stored with csv format into folder `processed_data`, ready to be uploaded to Google BigQuery.
 
-## 1.c - Upload data to Google BigQuery
-To be able to upload all transformed data stored in `processed_data` folder into BigQuery, I have developed a loader script that can be executed as follows:
+## Upload data to Google BigQuery
+To be able to upload all transformed data stored in `processed_data/` folder into BigQuery, I have developed a loader script that can be executed as follows:
 ```
- python3 src/NYC_Taxi_Load.py conf/conf.ini
+python3 src/NYC_Taxi_Load.py conf/conf.ini
 ```
-This scripts read all files in `processed_data` folder and uploads each one to BigQuery using BigQuery Python Client. Before uploading any file, this script creates the dataset & table in BigQuery to store NYC Taxi data (if they have not been created before).
+This scripts read all files in `processed_data/` folder and uploads each one to BigQuery using BigQuery Python Client. Before uploading any file, this script creates the dataset & table in BigQuery to store NYC Taxi data (if they have not been created before).
 
-## 1.d - Split the resulting table into data and geometries (data and geometries should be joinable by a common key)
+The name of the created table is `carto_ds.nyc_taxi_data`
+
+## Split the resulting table into data and geometries (data and geometries should be joinable by a common key)
 In order to achieve this goal, I have created a script that execute two CTAS DDL using BigQuery Python Client. In select statement I have added `ROW_NUMBER() OVER() AS ID` to obtain a key that can be used as a joinable key between both tables. The script can be executed as follows:
 ```
 python3 src/NYC_Taxi_Table_Splitter.py conf/conf.ini
-```                                                                                                                                                                                                                                                            
-## 3. Write the SQL queries that help you answer the following questions:
-## 3.a - What is the average fare per mile?
+```       
+The name of the created tables are:
+
+`carto_ds.nyc_taxi_data_geometries`
+
+`carto_ds.nyc_taxi_data_information`
+                                                                                                                                                                                                                                                     
+## Data Quality. Assess the quality of the data. Identify and document any issues with the data.
+Once the data has been loaded to BigQuery, we can perform a quality data analysis:
+
+First of all, we are going to check the number of records on our dataset:
+
+```
+SELECT count(*)
+FROM `carto-de-test.carto_ds.nyc_taxi_data`
+```
+Result:
+```
+37.383.557
+```
+
+Then, we are going to check the min and max dates of the dataset:
+
+```
+SELECT MIN(tpep_pickup_datetime), max(tpep_pickup_datetime)
+FROM `carto-de-test.carto_ds.nyc_taxi_data`
+```
+Result:
+
+| tpep_pickup_datetime    | tpep_pickup_datetime    | 
+|-------------------------|-------------------------|
+| 2015-01-01 00:00:00 UTC | 2015-07-31 23:59:59 UTC | 
+
+We can see that our dataset have data between 01/01/2015 to 31/07/2015.
+
+It's obvious taxi trips need to have at least one passenger. We can check if there are records with 0 passengers:
+```
+SELECT count(*)
+FROM `carto-de-test.carto_ds.nyc_taxi_data`
+WHERE passenger_count = 0;
+```
+Result:
+```
+15.411
+```
+These records look to be incorrect and need to be filtered.
+
+We are going to check if there are values that cannot be under zero, like `fare_amount`, `tip_amount`, `tolls_amount` or `total_amount`:
+
+```
+SELECT count(*)
+FROM `carto-de-test.carto_ds.nyc_taxi_data`
+WHERE fare_amount < 0
+OR tip_amount < 0
+OR tolls_amount < 0
+OR total_amount < 0;
+```
+Result:
+```
+12.453
+```
+Another time, these records look to be incorrect and have to be filtered.
+
+We know that the correct latitudes range from 0 to 90 and Longitudes range from 0 to 180, so we are going to show min and max for pickup longitude and latitude:
+
+```
+SELECT MIN(pickup_longitude) AS min_long, MAX(pickup_longitude) AS max_long, MIN(pickup_latitude) AS min_lat, MAX(pickup_latitude) AS max_lat
+FROM `carto-de-test.carto_ds.nyc_taxi_data`;
+```
+Result:
+
+| min_long           | max_long           | min_lat            | max_lat           |
+|--------------------|--------------------|--------------------|-------------------|
+| -874.0026245117188 | 133.81629943847656 | -67.22697448730469 | 404.7000122070313 |
+
+We can see that there are records that exceed these limits, so we need to filter them to avoid errors.
+
+## What is the average fare per mile?
 
 Query:
 ```
@@ -93,18 +178,19 @@ Result:
 6.356887742187664
 ```
 
-## 3.b - Which are the 10 pickup taxi zones with the highest average tip?
-
-Transform the .shp file to .csv file with EPSG:4326 format
+## Which are the 10 pickup taxi zones with the highest average tip?
+In order to use the taxi_zone.shp in BigQuery, we need to transform the .shp file to .csv file with EPSG:4326 format. For this purpose, I have decided to use `ogr2ogr` tool:
 ```
 sudo apt-get install gdal-bin
 ogr2ogr -t_srs "EPSG:4326" taxi_zones/taxi_zones_4326.shp taxi_zones/taxi_zones.shp
 ogr2ogr -f "CSV" -dialect sqlite -sql "select AsGeoJSON(geometry) AS geom, * from taxi_zones_4326" -overwrite taxi_zones/taxi_zones_4326.csv taxi_zones/taxi_zones_4326.shp
 ```
-Create a new table in BigQuery named `nyc_taxi_zones` with this taxi areas stored in .csv generated in the previous step.
+These commands generate a .csv file with taxi_zones geometries in EPSG:4326 format. Next step is upload this file into BigQuery and create a new table in BigQuery named `nyc_taxi_zones`.
+For this purpose, I have developed a simple loader script that can be executed as follows:
 ```
 python3 src/NYC_Taxi_Zones_Load.py conf/conf.ini
 ```
+The name of the created table is `carto_ds.nyc_taxi_zones`
 
 Query:
 ```
@@ -119,8 +205,8 @@ ID,
   ST_GeogPoint(pickup_longitude, pickup_latitude) AS WKT
 FROM
 `carto-de-test.carto_ds.nyc_taxi_data_geometries`
-WHERE pickup_longitude < 90 AND pickup_longitude > -90
-AND pickup_latitude < 90 AND  pickup_latitude > -90  
+WHERE pickup_longitude BETWEEN -180.0 AND 180.0
+AND pickup_latitude BETWEEN -90.0 AND 90.0  
 AND pickup_longitude != 0.0 AND pickup_latitude != 0.0
 AND ID IN 
 (
@@ -139,7 +225,8 @@ SELECT * FROM taxi_zones
 JOIN max_avg_tips
 ON ST_INTERSECTS(taxi_zones.polygon, max_avg_tips.WKT)
 ```
-In order to visualize this results, we have used `https://bigquerygeoviz.appspot.com/`
+
+In order to visualize these results, we have used the tool `BigQuery Geo Viz`
 
 Result:
 ![picture](img/max_taxi_tips_nyc_areas.png)
