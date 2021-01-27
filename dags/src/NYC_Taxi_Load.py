@@ -48,17 +48,19 @@ def load_all_data(client, dataset_id, table_id, path, file_extension):
 
 def load(**kwargs):
     cp = configparser.ConfigParser()
-    cp.read(kwargs['config_file'])
-    home_path = kwargs['airflow_path']
+    airflow_path = kwargs['airflow_path']
+    config_filename = kwargs['config_file']
+    config_path = f'{airflow_path}/{config_filename}'
+    cp.read(config_path)
     credentials_file = cp.get('google', 'credentials')
     processed_data_path = cp.get('etl', 'processed_data_path')
 
     # Read the properties from the configuration file
-    google_app_credentials = f'{home_path}/{credentials_file}'
+    google_app_credentials = f'{airflow_path}/{credentials_file}'
     project_id = cp.get('google', 'project_id')
     dataset_id = cp.get('google', 'dataset_id')
     table_id = cp.get('google', 'table_id')
-    data_path = f'{home_path}/{processed_data_path}'
+    data_path = f'{airflow_path}/{processed_data_path}'
     file_extension = cp.get('etl', 'processed_file_extension')
 
     # Set GOOGLE_APPLICATION_CREDENTIALS environment variable to google credentials file

@@ -13,12 +13,14 @@ def create_table(client, ddl):
 
 def tableSplitter(**kwargs):
     cp = configparser.ConfigParser()
-    cp.read(kwargs['config_file'])
-    home_path = kwargs['airflow_path']
+    airflow_path = kwargs['airflow_path']
+    config_filename = kwargs['config_file']
+    config_path = f'{airflow_path}/{config_filename}'
+    cp.read(config_path)
     credentials_file = cp.get('google', 'credentials')
 
     # Read the properties from the configuration file
-    google_app_credentials = f'{home_path}/{credentials_file}'
+    google_app_credentials = f'{airflow_path}/{credentials_file}'
     project_id = cp.get('google', 'project_id')
     dataset_id = cp.get('google', 'dataset_id')
     table_id = cp.get('google', 'table_id')

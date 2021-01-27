@@ -24,25 +24,25 @@ dag = DAG(
 # First task is download the data from Google Storage Bucket
 task1 = BashOperator(
     task_id='NYC_Taxi_Extract',
-    bash_command='python3 $AIRFLOW_HOME/dags/src/NYC_Taxi_Extract.py $AIRFLOW_HOME $AIRFLOW_HOME/dags/conf/conf.ini',
+    bash_command='python3 $AIRFLOW_HOME/dags/src/NYC_Taxi_Extract.py $AIRFLOW_HOME dags/conf/conf.ini',
     dag=dag)
 
 # Second task is to transform the data
 task2 = BashOperator(
     task_id='NYC_Taxi_Transform',
-    bash_command='python3 $AIRFLOW_HOME/dags/src/NYC_Taxi_Transform.py $AIRFLOW_HOME $AIRFLOW_HOME/dags/conf/conf.ini',
+    bash_command='python3 $AIRFLOW_HOME/dags/src/NYC_Taxi_Transform.py $AIRFLOW_HOME dags/conf/conf.ini',
     dag=dag)
 
 # Third task is to load data into BigQuery
 task3 = BashOperator(
     task_id='NYC_Taxi_Load',
-    bash_command='python3 $AIRFLOW_HOME/dags/src/NYC_Taxi_Load.py $AIRFLOW_HOME $AIRFLOW_HOME/dags/conf/conf.ini',
+    bash_command='python3 $AIRFLOW_HOME/dags/src/NYC_Taxi_Load.py $AIRFLOW_HOME dags/conf/conf.ini',
     dag=dag)
 
 # Fourth task is to split the table into data and geometries
 task4 = BashOperator(
     task_id='NYC_Taxi_Table_Splitter',
-    bash_command='python3 $AIRFLOW_HOME/dags/src/NYC_Taxi_Table_Splitter.py $AIRFLOW_HOME $AIRFLOW_HOME/dags/conf/conf.ini',
+    bash_command='python3 $AIRFLOW_HOME/dags/src/NYC_Taxi_Table_Splitter.py $AIRFLOW_HOME dags/conf/conf.ini',
     dag=dag)
 
 # Set tasks dependencies

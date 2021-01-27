@@ -47,14 +47,16 @@ def clean_df(df):
 
 def transform(**kwargs):
     cp = configparser.ConfigParser()
-    cp.read(kwargs['config_file'])
-    home_path = kwargs['airflow_path']
+    airflow_path = kwargs['airflow_path']
+    config_filename = kwargs['config_file']
+    config_path = f'{airflow_path}/{config_filename}'
+    cp.read(config_path)
     raw_data_path = cp.get('etl', 'raw_data_path')
     processed_data_path = cp.get('etl', 'processed_data_path')
 
     # Read the properties from the configuration file
-    input_data_path = f'{home_path}/{raw_data_path}'
-    output_data_path = f'{home_path}/{processed_data_path}'
+    input_data_path = f'{airflow_path}/{raw_data_path}'
+    output_data_path = f'{airflow_path}/{processed_data_path}'
     file_extension = cp.get('etl', 'processed_file_extension')
     separator = cp.get('etl', 'file_separator')
     process_file_name = cp.get('etl', 'process_file_name')

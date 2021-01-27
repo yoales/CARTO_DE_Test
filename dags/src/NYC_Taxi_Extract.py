@@ -45,15 +45,17 @@ def unzipFilesInDir(path, file_extension):
 
 def extract(**kwargs):
     cp = configparser.ConfigParser()
-    cp.read(kwargs['config_file'])
-    home_path = kwargs['airflow_path']
+    airflow_path = kwargs['airflow_path']
+    config_filename = kwargs['config_file']
+    config_path = f'{airflow_path}/{config_filename}'
+    cp.read(config_path)
     credentials_file = cp.get('google', 'credentials')
     raw_data_path = cp.get('etl', 'raw_data_path')
 
     # Read the properties from the configuration file
-    google_app_credentials = f'{home_path}/{credentials_file}'
+    google_app_credentials = f'{airflow_path}/{credentials_file}'
     bucket_name = cp.get('google', 'bucket_name')
-    data_path = f'{home_path}/{raw_data_path}'
+    data_path = f'{airflow_path}/{raw_data_path}'
     file_extension = cp.get('etl', 'raw_file_extension')
 
     # Set GOOGLE_APPLICATION_CREDENTIALS environment variable to google credentials file
